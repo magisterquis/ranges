@@ -1,10 +1,11 @@
-/* Ranges parses ranges of the form -n,n,n-n,n- (or -).  See the manpage for
+/*
+Ranges parses ranges of the form -n,n,n-n,n- (or -).  See the manpage for
 cut(1) for more info.
 
 Example:
  TODO: Finish this
 
- Bug: There really should be some sort of optimization for the filter.
+Bug: There really should be some sort of optimization for the filter.
 */
 package ranges
 
