@@ -66,7 +66,7 @@ type Filter struct {
 
 /* New makes a new Filter, with the Debug and Verbose functions set to d and v,
 which may be nil to indicate a no-op. */
-func New(d, v func(f string, a ...interface{})) Filter {
+func New(v, d func(f string, a ...interface{})) Filter {
 	f := Filter{}
 	if nil == d {
 		d = func(f string, a ...interface{}) {}
@@ -131,7 +131,7 @@ func (f *Filter) UpdateOne(s string) error {
 	/* Work out what sort of specification: -, -n, n-, n-n, n */
 	switch {
 	case "-" == s: /* - */
-		f.all = true
+		f.All = true
 		f.Verbose("Entire input selected")
 
 	case strings.HasPrefix(s, "-"): /* -n */
@@ -141,7 +141,7 @@ func (f *Filter) UpdateOne(s string) error {
 			return err
 		}
 		/* Don't change if it's a subset */
-		if f.all || (f.upto >= n) {
+		if f.All || (f.upto >= n) {
 			return nil
 		}
 		/* Update */
@@ -155,7 +155,7 @@ func (f *Filter) UpdateOne(s string) error {
 			return err
 		}
 		/* Don't change if it's a subset */
-		if f.all || (f.andfollowing <= n) {
+		if f.All || (f.andfollowing <= n) {
 			return nil
 		}
 		/* Update */
@@ -179,7 +179,7 @@ func (f *Filter) UpdateOne(s string) error {
 			return err
 		}
 		/* Check the obvious fields, optimize will do the rest */
-		if f.all {
+		if f.All {
 			return nil
 		}
 		if f.upto >= end {
@@ -199,7 +199,7 @@ func (f *Filter) UpdateOne(s string) error {
 			return err
 		}
 		/* Check the obvious fields */
-		if f.all || n <= f.upto || n >= f.andfollowing {
+		if f.All || n <= f.upto || n >= f.andfollowing {
 			return nil
 		}
 		/* Add if it not there */
@@ -215,7 +215,7 @@ func (f *Filter) UpdateOne(s string) error {
 /* Allows returns whether or not f allows n */
 func (f filter) Allows(n int) {
 	/* Check the obvious fields */
-	if f.all || n <= f.upto || n >= f.andfollowing {
+	if f.All || n <= f.upto || n >= f.andfollowing {
 		return true
 	}
 	/* Check each range */
