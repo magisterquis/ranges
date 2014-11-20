@@ -98,16 +98,16 @@ func (f Filter) String() string {
 	if f.UptoSpec {
 		u = "T"
 	}
-	f := "F" /* AndfollowingSpec */
+	n := "F" /* AndfollowingSpec */
 	if f.AndfollowingSpec {
-		f = "T"
+		n = "T"
 	}
 	/* TODO: Finish this */
 	return fmt.Sprintf("[-: %v][-n: %v(%v)][n- %v(%v)][n-n %v]"+
 		"[n %v]",
 		a,
 		f.Upto, u,
-		f.Andfollowing, f,
+		f.Andfollowing, n,
 		f.Ranges,
 		f.Singles)
 }
@@ -175,7 +175,7 @@ func (f *Filter) UpdateOne(s string) error {
 			return err
 		}
 		/* Don't change if it's a subset */
-		if f.All || (f.Uptospec && f.Upto >= n) {
+		if f.All || (f.UptoSpec && f.Upto >= n) {
 			return nil
 		}
 		/* Update */
