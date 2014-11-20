@@ -49,17 +49,19 @@ func (i IRange) Has(n int) bool {
 }
 
 /* Stringify IRange */
-func (i IRange) String() {
-	fmt.Sprintf("%v-%v", i.Start, i.End)
+func (i IRange) String() string {
+	return fmt.Sprintf("%v-%v", i.Start, i.End)
 }
 
 /* Filter for ranges and indices */
 type Filter struct {
-	All          bool     /* - */
-	Upto         int      /* -n */
-	Singles      []int    /* n,n,n,n */
-	Ranges       []IRange /* n-n,n-n */
-	Andfollowing int      /* n- */
+	All              bool     /* - */
+	Upto             int      /* -n */
+	UptoSpec         bool     /* If Upto has been specified */
+	Singles          []int    /* n,n,n,n */
+	Ranges           []IRange /* n-n,n-n */
+	Andfollowing     int      /* n- */
+	AndfollowingSpec bool     /* If Andfollowing has been specified */
 
 	/* Printf-like functions to print Information and Debugging messages */
 	Debug   func(f string, a ...interface{})
@@ -87,8 +89,27 @@ func New(v, d func(f string, a ...interface{})) Filter {
 
 /* Stringify the filter to a one-line string */
 func (f Filter) String() string {
+	/* Simpler true/false */
+	a := "F" /* All */
+	if f.All {
+		a = "T"
+	}
+	u := "F" /* UptoSpec */
+	if f.UptoSpec {
+		u = "T"
+	}
+	f := "F" /* AndfollowingSpec */
+	if f.AndfollowingSpec {
+		f = "T"
+	}
 	/* TODO: Finish this */
-	return fmt.Sprintf("%v", f)
+	return fmt.Sprintf("[-: %v][-n: %v(%v)][n- %v(%v)][n-n %v]"+
+		"[n %v]",
+		a,
+		f.Upto, u,
+		f.Andfollowing, f,
+		f.Ranges,
+		f.Singles)
 }
 
 /* Pretty-print the filter */
@@ -154,11 +175,12 @@ func (f *Filter) UpdateOne(s string) error {
 			return err
 		}
 		/* Don't change if it's a subset */
-		if f.All || (f.Upto >= n) {
+		if f.All || (f.Uptospec && f.Upto >= n) {
 			return nil
 		}
 		/* Update */
 		f.Upto = n
+		f.UptoSpec = true
 		f.Verbose("Final range now %v", s)
 
 	case strings.HasSuffix(s, "-"): /* n- */
@@ -168,11 +190,12 @@ func (f *Filter) UpdateOne(s string) error {
 			return err
 		}
 		/* Don't change if it's a subset */
-		if f.All || (f.Andfollowing <= n) {
+		if f.All || (f.AndfollowingSpec && f.Andfollowing <= n) {
 			return nil
 		}
 		/* Update */
 		f.Andfollowing = n
+		f.AndfollowingSpec = true
 		f.Verbose("Initial range now %v", s)
 
 	case strings.ContainsRune(s, '-'): /* n-n */
@@ -195,10 +218,10 @@ func (f *Filter) UpdateOne(s string) error {
 		if f.All {
 			return nil
 		}
-		if f.Upto >= end {
+		if f.UptoSpec && f.Upto >= end {
 			return nil
 		}
-		if f.Andfollowing <= start {
+		if f.AndfollowingSpec && f.Andfollowing <= start {
 			return nil
 		}
 		/* Add it to the list */
@@ -212,7 +235,8 @@ func (f *Filter) UpdateOne(s string) error {
 			return err
 		}
 		/* Check the obvious fields */
-		if f.All || n <= f.Upto || n >= f.Andfollowing {
+		if f.All || (f.UptoSpec && n <= f.Upto) ||
+			(f.AndfollowingSpec && n >= f.Andfollowing) {
 			return nil
 		}
 		/* Add if it not there */
@@ -242,9 +266,9 @@ func (f Filter) AllowsOut(n int) (bool, int) {
 	switch {
 	case f.All:
 		return true, AllMatch
-	case n <= f.Upto:
+	case f.UptoSpec && n <= f.Upto:
 		return true, Below
-	case n >= f.Andfollowing:
+	case f.AndfollowingSpec && n >= f.Andfollowing:
 		return true, Above
 	case f.InRanges(n):
 		return true, InRange
