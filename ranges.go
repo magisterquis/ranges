@@ -110,7 +110,8 @@ func (f *Filter) Update(s string) error {
 		if len(s) > 0 {
 			/* Die on errors */
 			if err := f.UpdateOne(s); err != nil {
-				return err
+				return errors.New("Error processing %v: %v",
+					s, err)
 			}
 			/* We got one */
 			one = true
