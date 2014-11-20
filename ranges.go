@@ -63,13 +63,12 @@ type Filter struct {
 	Andfollowing     int      /* n- */
 	AndfollowingSpec bool     /* If Andfollowing has been specified */
 
-	/* Printf-like functions to print Information and Debugging messages */
-	Debug   func(f string, a ...interface{})
-	Verbose func(f string, a ...interface{})
+	/* Printf-like function to print Debugging messages */
+	Debug func(f string, a ...interface{})
 }
 
-/* New makes a new Filter, with the Debug and Verbose functions set to d and v,
-which may be nil to indicate a no-op. */
+/* New makes a new Filter, with the Debug and d, which may be nil to indicate
+a no-op. */
 func New(v, d func(f string, a ...interface{})) Filter {
 	/* Make a filter */
 	f := Filter{}
@@ -77,12 +76,8 @@ func New(v, d func(f string, a ...interface{})) Filter {
 	if nil == d {
 		d = func(f string, a ...interface{}) {}
 	}
-	if nil == v {
-		v = func(f string, a ...interface{}) {}
-	}
 	/* Set output functions */
 	f.Debug = d
-	f.Verbose = v
 
 	return f
 }
@@ -130,7 +125,7 @@ func (f *Filter) Update(s string) error {
 	if 0 == len(ss) {
 		return errors.New("no ranges")
 	}
-	f.Verbose("Processing range(s): %v", s)
+	f.Debug("Processing range(s): %v", s)
 	/* Process each string in ss */
 	for _, r := range ss {
 		/* Skip whitespace-only strings */
@@ -166,7 +161,7 @@ func (f *Filter) UpdateOne(s string) error {
 	switch {
 	case "-" == s: /* - */
 		f.All = true
-		f.Verbose("Entire input selected")
+		f.Debug("Entire input selected")
 
 	case strings.HasPrefix(s, "-"): /* -n */
 		/* Extract the number */
@@ -181,7 +176,7 @@ func (f *Filter) UpdateOne(s string) error {
 		/* Update */
 		f.Upto = n
 		f.UptoSpec = true
-		f.Verbose("Initial range now %v", s)
+		f.Debug("Initial range now %v", s)
 
 	case strings.HasSuffix(s, "-"): /* n- */
 		/* Extract the number */
@@ -196,7 +191,7 @@ func (f *Filter) UpdateOne(s string) error {
 		/* Update */
 		f.Andfollowing = n
 		f.AndfollowingSpec = true
-		f.Verbose("Final range now %v", s)
+		f.Debug("Final range now %v", s)
 
 	case strings.ContainsRune(s, '-'): /* n-n */
 		/* Extract the strings */
@@ -226,7 +221,7 @@ func (f *Filter) UpdateOne(s string) error {
 		}
 		/* Add it to the list */
 		f.Ranges = append(f.Ranges, IRange{Start: start, End: end})
-		f.Verbose("Added range %v", s)
+		f.Debug("Added range %v", s)
 
 	default: /* n, hopefully */
 		/* Extract the number */
@@ -243,7 +238,7 @@ func (f *Filter) UpdateOne(s string) error {
 		if !f.Allows(n) {
 			f.Singles = append(f.Singles, n)
 		}
-		f.Verbose("Added index %v", n)
+		f.Debug("Added index %v", n)
 
 	}
 	f.Debug("filter: %v", f)
