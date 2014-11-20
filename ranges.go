@@ -130,7 +130,7 @@ func (f *Filter) Update(s string) error {
 	if 0 == len(ss) {
 		return errors.New("no ranges")
 	}
-	f.Verbose("Processing %v", s)
+	f.Verbose("Processing range(s): %v", s)
 	/* Process each string in ss */
 	for _, r := range ss {
 		/* Skip whitespace-only strings */
@@ -161,7 +161,7 @@ func (f *Filter) UpdateOne(s string) error {
 		f.Debug("Got whitespace.")
 		return nil
 	}
-	f.Debug("Processing %v", s)
+	f.Debug("Processing range: %v", s)
 	/* Work out what sort of specification: -, -n, n-, n-n, n */
 	switch {
 	case "-" == s: /* - */
@@ -181,11 +181,11 @@ func (f *Filter) UpdateOne(s string) error {
 		/* Update */
 		f.Upto = n
 		f.UptoSpec = true
-		f.Verbose("Final range now %v", s)
+		f.Verbose("Initial range now %v", s)
 
 	case strings.HasSuffix(s, "-"): /* n- */
 		/* Extract the number */
-		n, err := strconv.Atoi(strings.TrimLeft(s, "-"))
+		n, err := strconv.Atoi(strings.TrimRight(s, "-"))
 		if err != nil {
 			return err
 		}
@@ -196,7 +196,7 @@ func (f *Filter) UpdateOne(s string) error {
 		/* Update */
 		f.Andfollowing = n
 		f.AndfollowingSpec = true
-		f.Verbose("Initial range now %v", s)
+		f.Verbose("Final range now %v", s)
 
 	case strings.ContainsRune(s, '-'): /* n-n */
 		/* Extract the strings */
