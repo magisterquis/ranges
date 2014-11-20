@@ -243,7 +243,7 @@ func (f *Filter) UpdateOne(s string) error {
 		if !f.Allows(n) {
 			f.Singles = append(f.Singles, n)
 		}
-		f.Verbose("Added index %v")
+		f.Verbose("Added index %v", n)
 
 	}
 	f.Debug("filter: %v", f)
