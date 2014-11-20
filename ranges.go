@@ -10,7 +10,9 @@ Bug: There really should be some sort of optimization for the filter.
 package ranges
 
 import (
+	"errors"
 	"fmt"
+	"strconv"
 	"strings"
 )
 
@@ -43,7 +45,7 @@ type IRange struct {
 
 /* Has returns whether or not n is in the range specified by i */
 func (i IRange) Has(n int) bool {
-	return (n <= end) && (n >= start)
+	return (n <= i.End) && (n >= i.Start)
 }
 
 /* Stringify IRange */
@@ -56,7 +58,7 @@ type Filter struct {
 	All          bool     /* - */
 	Upto         int      /* -n */
 	Singles      []int    /* n,n,n,n */
-	Ranges       []irange /* n-n,n-n */
+	Ranges       []IRange /* n-n,n-n */
 	Andfollowing int      /* n- */
 
 	/* Printf-like functions to print Information and Debugging messages */
@@ -67,15 +69,20 @@ type Filter struct {
 /* New makes a new Filter, with the Debug and Verbose functions set to d and v,
 which may be nil to indicate a no-op. */
 func New(v, d func(f string, a ...interface{})) Filter {
+	/* Make a filter */
 	f := Filter{}
+	/* Make noops if needed */
 	if nil == d {
 		d = func(f string, a ...interface{}) {}
 	}
 	if nil == v {
 		v = func(f string, a ...interface{}) {}
 	}
+	/* Set output functions */
 	f.Debug = d
 	f.Verbose = v
+
+	return f
 }
 
 /* Stringify the filter to a one-line string */
@@ -90,33 +97,38 @@ func (f Filter) PPrint() {
 	fmt.Printf("%v\n", f)
 }
 
-/* Update the filter with the ranges in s.  It is a union operation.  It is
-an error to pass a string to Update which doesn't contain at least one
-range. */
+/* Update the filter with s, which contains a comma-separated list of ranges,
+or indices.  It is a union operation.  It is an error to pass a string to
+Update which doesn't contain at least one range. */
 func (f *Filter) Update(s string) error {
 	one := false /* Have at least one range */
 	/* Trim Whitespace */
 	s = strings.TrimSpace(s)
 	/* Split on , */
-	ss = strings.Split(s, ",")
+	ss := strings.Split(s, ",")
 	if 0 == len(ss) {
-		return Errors.New("no ranges")
+		return errors.New("no ranges")
 	}
 	f.Verbose("Processing %v", s)
 	/* Process each string in ss */
 	for _, r := range ss {
 		/* Skip whitespace-only strings */
-		s = strings.TrimSpace(s)
+		r = strings.TrimSpace(r)
 		if len(s) > 0 {
 			/* Die on errors */
-			if err := f.UpdateOne(s); err != nil {
-				return errors.New("Error processing %v: %v",
-					s, err)
+			if err := f.UpdateOne(r); err != nil {
+				return errors.New(fmt.Sprintf("Error "+
+					"processing %v: %v", r, err))
 			}
 			/* We got one */
 			one = true
 		}
 	}
+	/* If we didn't even get one update, throw an error */
+	if !one {
+		return errors.New("no ranges or indices found")
+	}
+	return nil
 }
 
 /* UpdateOne adds to the filter the number or range in s.  It is a union. */
@@ -125,8 +137,8 @@ func (f *Filter) UpdateOne(s string) error {
 	s = strings.TrimSpace(s)
 	/* Give up if string was only whitespace */
 	if "" == s {
-		return true
 		f.Debug("Got whitespace.")
+		return nil
 	}
 	f.Debug("Processing %v", s)
 	/* Work out what sort of specification: -, -n, n-, n-n, n */
@@ -142,11 +154,11 @@ func (f *Filter) UpdateOne(s string) error {
 			return err
 		}
 		/* Don't change if it's a subset */
-		if f.All || (f.upto >= n) {
+		if f.All || (f.Upto >= n) {
 			return nil
 		}
 		/* Update */
-		f.upto = n
+		f.Upto = n
 		f.Verbose("Final range now %v", s)
 
 	case strings.HasSuffix(s, "-"): /* n- */
@@ -156,11 +168,11 @@ func (f *Filter) UpdateOne(s string) error {
 			return err
 		}
 		/* Don't change if it's a subset */
-		if f.All || (f.andfollowing <= n) {
+		if f.All || (f.Andfollowing <= n) {
 			return nil
 		}
 		/* Update */
-		f.andfollowing = n
+		f.Andfollowing = n
 		f.Verbose("Initial range now %v", s)
 
 	case strings.ContainsRune(s, '-'): /* n-n */
@@ -171,11 +183,11 @@ func (f *Filter) UpdateOne(s string) error {
 			return errors.New("not enough numbers in range")
 		}
 		/* Extract the numbers */
-		start, err := strings.Atoi(ns[0])
+		start, err := strconv.Atoi(ns[0])
 		if err != nil {
 			return err
 		}
-		end, err := strings.Atoi(ns[1])
+		end, err := strconv.Atoi(ns[1])
 		if err != nil {
 			return err
 		}
@@ -183,14 +195,14 @@ func (f *Filter) UpdateOne(s string) error {
 		if f.All {
 			return nil
 		}
-		if f.upto >= end {
+		if f.Upto >= end {
 			return nil
 		}
-		if f.andfollowing <= start {
+		if f.Andfollowing <= start {
 			return nil
 		}
 		/* Add it to the list */
-		f.ranges = append(f.ranges, irange{start: start, end: end})
+		f.Ranges = append(f.Ranges, IRange{Start: start, End: end})
 		f.Verbose("Added range %v", s)
 
 	default: /* n, hopefully */
@@ -200,44 +212,45 @@ func (f *Filter) UpdateOne(s string) error {
 			return err
 		}
 		/* Check the obvious fields */
-		if f.All || n <= f.upto || n >= f.andfollowing {
+		if f.All || n <= f.Upto || n >= f.Andfollowing {
 			return nil
 		}
 		/* Add if it not there */
 		if !f.Allows(n) {
-			f.singles = append(f.singles, n)
+			f.Singles = append(f.Singles, n)
 		}
 		f.Verbose("Added index %v")
 
 	}
 	f.Debug("filter: %v", f)
+	return nil
 }
 
 /* AllowsOut returns whether or not f allows in, and an additional int that
 describes which part of the filter allowed n. */
 const (
 	/* Return values for filter.AllowsOut */
-	InRange  iota /* In a range */
-	IsIndex       /* Matched a single index */
-	Above         /* Above or equal to Andfollowing */
-	Below         /* Below or equal to Upto */
-	AllMatch      /* All is set */
+	InRange  = iota /* In a range */
+	IsIndex         /* Matched a single index */
+	Above           /* Above or equal to Andfollowing */
+	Below           /* Below or equal to Upto */
+	AllMatch        /* All is set */
 )
 
-func (f filter) AllowsOut(n int) (bool, int) {
+func (f Filter) AllowsOut(n int) (bool, int) {
 	/* Check the obvious fields */
 	switch {
 	case f.All:
 		return true, AllMatch
-	case n <= f.upto:
+	case n <= f.Upto:
 		return true, Below
-	case n >= f.andfollowing:
+	case n >= f.Andfollowing:
 		return true, Above
-	case f.inRanges(n):
+	case f.InRanges(n):
 		return true, InRange
 	}
 	/* Check the individual indices */
-	for _, i := range f.singles {
+	for _, i := range f.Singles {
 		if n == i {
 			return true, IsIndex
 		}
@@ -247,15 +260,15 @@ func (f filter) AllowsOut(n int) (bool, int) {
 }
 
 /* Allows returns whether or not f allows n */
-func (f filter) Allows(n int) bool {
-	_, a, _ = f.AllowsOut(n)
+func (f Filter) Allows(n int) bool {
+	a, _ := f.AllowsOut(n)
 	return a
 }
 
 /* InRanges tests if in an index is in one of f's ranges */
-func (f filter) InRanges(i int) {
-	for _, r := range f.ranges {
-		if i >= r.start && i <= r.end {
+func (f Filter) InRanges(i int) bool {
+	for _, r := range f.Ranges {
+		if i >= r.Start && i <= r.End {
 			return true
 		}
 	}
