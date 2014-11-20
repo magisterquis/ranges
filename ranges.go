@@ -213,24 +213,43 @@ func (f *Filter) UpdateOne(s string) error {
 	f.Debug("filter: %v", f)
 }
 
-/* Allows returns whether or not f allows n */
-func (f filter) Allows(n int) {
+/* AllowsOut returns whether or not f allows in, and an additional int that
+describes which part of the filter allowed n. */
+const (
+	/* Return values for filter.AllowsOut */
+	InRange  iota /* In a range */
+	IsIndex       /* Matched a single index */
+	Above         /* Above or equal to Andfollowing */
+	Below         /* Below or equal to Upto */
+	AllMatch      /* All is set */
+)
+
+func (f filter) AllowsOut(n int) (bool, int) {
 	/* Check the obvious fields */
-	if f.All || n <= f.upto || n >= f.andfollowing {
-		return true
-	}
-	/* Check each range */
-	if f.inRanges(n) {
-		return true
+	switch {
+	case f.All:
+		return true, AllMatch
+	case n <= f.upto:
+		return true, Below
+	case n >= f.andfollowing:
+		return true, Above
+	case f.inRanges(n):
+		return true, InRange
 	}
 	/* Check the individual indices */
 	for _, i := range f.singles {
 		if n == i {
-			return true
+			return true, IsIndex
 		}
 	}
 	/* If we're here, it's not allowed */
-	return false
+	return false, 0
+}
+
+/* Allows returns whether or not f allows n */
+func (f filter) Allows(n int) bool {
+	_, a, _ = f.AllowsOut(n)
+	return a
 }
 
 /* InRanges tests if in an index is in one of f's ranges */
